@@ -5,32 +5,29 @@ import (
 	"log"
 	"time"
 
-	// Add the MongoDB driver packages
-
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// Your MongoDB Atlas Connection String
-const uri = "mongodb://localhost:27017/travel"
+// Define your MongoDB connection string
+const uri = "mongodb://localhost:27017"
 
-// A global variable that will hold a reference to the MongoDB client
-var mongoClient *mongo.Client
+// Create a global variable to hold our MongoDB connection
+var MongoClient *mongo.Client
 
-var db *mongo.Collection
+var Db *mongo.Collection
 var ctx context.Context
 
-// The init function will run before our main function to establish a connection to MongoDB. If it cannot connect it will fail and the program will exit.
+// This function runs before we call our main function and connects to our MongoDB database. If it cannot connect, the application stops.
 func init() {
 	if err := connect_to_mongodb(); err != nil {
 		log.Fatal("Could not connect to MongoDB")
 	}
-	db = mongoClient.Database("travel").Collection("hotel")
+	Db = MongoClient.Database("travel").Collection("hotel")
 	ctx, _ = context.WithTimeout(context.Background(), 10*time.Second)
-
 }
 
-// Our implementation logic for connecting to MongoDB
+// Our implementation code to connect to MongoDB at startup
 func connect_to_mongodb() error {
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
@@ -40,6 +37,6 @@ func connect_to_mongodb() error {
 		panic(err)
 	}
 	err = client.Ping(context.TODO(), nil)
-	mongoClient = client
+	MongoClient = client
 	return err
 }
