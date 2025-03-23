@@ -5,7 +5,6 @@ import (
 )
 
 type Hotel struct {
-	ID            uint      `json:"id" gorm:"primary_key"`
 	Title         string    `json:"title"`
 	Content       string    `json:"content"`
 	PrimaryInfo   string    `json:"primaryinfo"`

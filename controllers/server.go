@@ -26,10 +26,19 @@ func (server *Server) setUpRouter() {
 			"message": "Hello World",
 		})
 	})
-	router.GET("/movies", GetMovies)
-	router.GET("/movies/:id", GetMovieByID)
-	router.POST("/movies", CreateMovies)
-	router.POST("/movies/aggregations", AggregateMovies)
+	router.GET("/api/hotels", ListHotels)
+	router.GET("/api/hotels/:id", GetHotelByID)
+	router.GET("/api/hotels/filter", FilterHotels)
+	router.GET("/api/hotels/search", SearchHotels)
+	router.GET("/api/hotels/location", SearchHotels)
+	/*
+	*	MUTATIONS
+	 */
+	router.POST("/api/hotels", CreateHotels)
+	router.PUT("/api/hotels/:id", updateHotel)
+	router.DELETE("/api/hotels/:id", deleteHotel)
+	router.POST("/movies/aggregations", AggregateHotels)
+
 	server.router = router
 
 	// r.Run()

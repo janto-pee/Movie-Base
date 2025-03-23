@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -10,79 +11,162 @@ import (
 	"github.com/janto-pee/Horizon-Travels.git/util"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// Implemention of the /movies route that returns all of the movies from our movies collection.
-func GetMovies(c *gin.Context) {
-	// Find movies
-	cursor, err := util.Db.Find(context.TODO(), bson.D{{}})
+// List Hotel
+type listHotelsRequest struct {
+	PageID   int64
+	PageSize int64
+}
+
+func ListHotels(c *gin.Context) {
+	var req listHotelsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+
+	skip := (req.PageID - 1) * req.PageSize
+	fmt.Println(req.PageID, req.PageSize, skip)
+	opts := options.Find().SetLimit(int64(req.PageSize)).SetSkip(skip)
+	cursor, err := util.Db.Find(context.TODO(), bson.D{{}}, opts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Map results
-	var movies []bson.M
-	if err = cursor.All(context.TODO(), &movies); err != nil {
+	var hotels []bson.M
+	if err = cursor.All(context.TODO(), &hotels); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Return movies
-	c.JSON(http.StatusOK, movies)
+	c.JSON(http.StatusOK, hotels)
 }
 
-// The implementation of our /movies/{id} endpoint that returns a single movie based on the provided ID
-func GetMovieByID(c *gin.Context) {
+// Get Hotel Details
+func GetHotelByID(c *gin.Context) {
 
-	// Get movie ID from URL
 	idStr := c.Param("id")
+	fmt.Println(idStr)
 
-	// Convert id string to ObjectId
 	id, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Find movie by ObjectId
-	var movie bson.M
-	err = util.Db.FindOne(context.TODO(), bson.D{{"_id", id}}).Decode(&movie)
+	var hotel bson.M
+	err = util.Db.FindOne(context.TODO(), bson.D{{"_id", id}}).Decode(&hotel)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Return movie
-	c.JSON(http.StatusOK, movie)
+	c.JSON(http.StatusOK, hotel)
 }
 
-// The implementation of our /movies/aggregations endpoint that allows a user to pass in an aggregation to run our the movies collection.
-func AggregateMovies(c *gin.Context) {
-	// Get aggregation pipeline from request body
+// Search Hotel By Location &
+// Search Hotel
+type SearchHotelsRequest struct {
+	PageID   int
+	PageSize int
+	Keyword  string
+}
+
+func SearchHotels(c *gin.Context) {
+	PageID, err := strconv.Atoi(c.Query("PageID"))
+	PageSize, err := strconv.Atoi(c.Query("PageSize"))
+	Keyword := c.Query("Keyword")
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+	filter := bson.D{{"$text", bson.D{{"$search", Keyword}}}}
+	skip := (PageID - 1) * PageSize
+
+	opts := options.Find().SetLimit(int64(PageSize)).SetSkip(int64(skip))
+	cursor, err := util.Db.Find(context.TODO(), filter, opts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var hotels []bson.M
+	if err = cursor.All(context.TODO(), &hotels); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, hotels)
+}
+
+// Get Hotel Filters
+type FilterHotelRequest struct {
+	Title         string
+	Content       string
+	PrimaryInfo   string
+	SecondaryInfo string
+	AccentedLabel string
+	Provider      string
+	PriceDetails  string
+	PriceSummary  string
+}
+
+func FilterHotels(c *gin.Context) {
+	var req listHotelsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errorResponse(err))
+		return
+	}
+	filter := bson.D{{"title", bson.D{{"$regex", "^E"}}}, {"provider", bson.D{{"$regex", "^E"}}}}
+	skip := (req.PageID - 1) * req.PageSize
+	fmt.Println(req.PageID, req.PageSize, skip)
+	opts := options.Find().SetLimit(int64(req.PageSize)).SetSkip(skip)
+	cursor, err := util.Db.Find(context.TODO(), filter, opts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var hotels []bson.M
+	if err = cursor.All(context.TODO(), &hotels); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, hotels)
+}
+
+func AggregateHotels(c *gin.Context) {
 	var pipeline interface{}
 	if err := c.ShouldBindJSON(&pipeline); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Run aggregations
-	cursor, err := util.MongoClient.Database("sample_mflix").Collection("movies").Aggregate(context.TODO(), pipeline)
+	cursor, err := util.Db.Aggregate(context.TODO(), pipeline)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Map results
 	var result []bson.M
 	if err = cursor.All(context.TODO(), &result); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Return result
 	c.JSON(http.StatusOK, result)
 }
+
+/*
+*
+*	MUTATIONS
+*
+ */
 
 type createHotelRequest struct {
 	Title         string
@@ -95,8 +179,7 @@ type createHotelRequest struct {
 	PriceSummary  string
 }
 
-func CreateMovies(c *gin.Context) {
-	// Get aggregation pipeline from request body
+func CreateHotels(c *gin.Context) {
 	var req createHotelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, errorResponse(err))
