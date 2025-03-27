@@ -1,27 +1,25 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 
-	"github.com/janto-pee/Horizon-Travels.git/controllers"
-	"github.com/janto-pee/Horizon-Travels.git/util"
+	api "github.com/janto-pee/fintech-platform.git/api"
+	db "github.com/janto-pee/fintech-platform.git/db/sqlc"
+)
+
+const (
+	dbDriver      = "postgres"
+	dbsource      = "postgresql://root:secret@localhost:5432/fintech?sslmode=disable"
+	serverAddress = "0.0.0.0:8080"
 )
 
 func main() {
-	config, err := util.LoadConfig(".")
+	conn, err := sql.Open(dbDriver, dbsource)
 	if err != nil {
-		log.Fatal("Could not load configuration environment", err)
+		log.Fatal("cannot connect to db: ", err)
 	}
-	runGinServer(config)
-}
-
-func runGinServer(config util.Config) {
-	server, err := controllers.NewServer(config)
-	if err != nil {
-		log.Fatal("Could not create server")
-	}
-	server.Start(config.HTTPServerAddress)
-	if err != nil {
-		log.Fatal("Could not start server")
-	}
+	store := db.NewStore(conn)
+	server := api.NewServer(store)
+	err = server.Start(serverAddress)
 }
